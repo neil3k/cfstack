@@ -1,0 +1,115 @@
+{
+    "Resources": {
+      "MyBucket": {
+        "Type": "AWS::S3::Bucket",
+        "Properties": {
+          "BucketName": "neils-14031984-cool-bucket",
+          "OwnershipControls": {
+                 "Rules": [
+                     {
+                         "ObjectOwnership": "BucketOwnerEnforced"
+                     }
+                 ]
+             }
+        }
+    },
+       "VPC1" : {
+        "Type" : "AWS::EC2::VPC",
+        "Properties" : {
+           "CidrBlock" : "172.31.0.0/16",
+           "EnableDnsSupport" : "true",
+           "EnableDnsHostnames" : "true",
+           "InstanceTenancy" : "default",
+           "Tags" : [ 
+              {"Key" : "Name", "Value" : "Cloudformation VPC"} 
+           ]
+        }
+     },
+        "PrivateSubnet" : {
+        "Type" : "AWS::EC2::Subnet",
+        "Properties" : {
+           "VpcId" : { "Ref" : "VPC1" },
+           "CidrBlock" : "172.31.0.0/24",
+           "AvailabilityZone" : "eu-west-2a",
+           "Tags" : [ { "Key" : "Name", "Value" : "Private Subnet" } ]
+        }
+     },
+        "PublicSubnet" : {
+        "Type" : "AWS::EC2::Subnet",
+        "Properties" : {
+           "VpcId" : { "Ref" : "VPC1" },
+           "CidrBlock" : "172.31.1.0/24",
+           "AvailabilityZone" : "eu-west-2b",
+           "Tags" : [ { "Key" : "Name", "Value" : "Public Subnet" } ]
+        }
+     },
+        "IGW1" : {
+        "Type" : "AWS::EC2::InternetGateway"
+     },
+        "AttachGateway" : {
+        "Type" : "AWS::EC2::VPCGatewayAttachment",
+        "Properties" : {
+           "VpcId" : { "Ref" : "VPC1" },
+           "InternetGatewayId" : { "Ref" : "IGW1" }
+         }
+     },
+        "PublicRT" : {
+        "Type" : "AWS::EC2::RouteTable",
+        "Properties" : {
+            "Tags" : [ { "Key" : "Name", "Value" : "Public Subnet RT" } ],
+            "VpcId" : { "Ref" : "VPC1" }
+         }
+     },
+        "PrivRT" : {
+        "Type" : "AWS::EC2::RouteTable",
+        "Properties" : {
+            "Tags" : [ { "Key" : "Name", "Value" : "Priv Subnet RT" } ],
+            "VpcId" : { "Ref" : "VPC1" }
+         }
+     },
+        "PrivRTAssoc" : {
+        "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+        "Properties" : {
+            "RouteTableId" : {"Ref" : "PrivRT"},
+            "SubnetId" : {"Ref" : "PrivateSubnet"}
+          }
+      },
+        "PublicRTAssoc" : {
+        "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+        "Properties" : {
+            "RouteTableId" : {"Ref" : "PublicRT"},
+            "SubnetId" : {"Ref" : "PublicSubnet"}
+          }
+      },
+        "PublicRTIGWAssoc" : {
+        "Type" : "AWS::EC2::Route",
+        "Properties" : {
+            "DestinationCidrBlock" : "0.0.0.0/0",
+            "GatewayId" : { "Ref" : "IGW1"},
+            "RouteTableId" : { "Ref"  : "PublicRT"}
+        }      
+        },
+        "NatEIP": {
+        "Type": "AWS::EC2::EIP",
+        "Properties": {
+          "Domain": "vpc"
+        }
+        },
+        "NATGW1" : {
+        "Type" : "AWS::EC2::NatGateway",
+        "DependsOn" : "NatEIP",
+            "Properties" : {
+            "SubnetId" : { "Ref" : "PublicSubnet"},
+            "AllocationId" : { "Fn::GetAtt" : ["NatEIP", "AllocationId"]},
+            }
+        },
+        "myVpcNatGatWayRoute":{
+        "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "NatGatewayId" : {"Ref":"NATGW1"},
+                "RouteTableId" : {"Ref":"PrivRT"}
+            }
+        }
+}
+}
